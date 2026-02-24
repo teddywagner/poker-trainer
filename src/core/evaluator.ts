@@ -174,7 +174,6 @@ export function calculateOuts(holeCards: [Card, Card], board: Card[]): { outs: n
   const outCards: Card[] = [];
 
   const holeValues = holeCards.map(c => RANK_VALUES[c.rank]);
-  const holeSuits = holeCards.map(c => c.suit);
   const boardValues = board.map(c => RANK_VALUES[c.rank]);
   const currentHand = evaluateBest5(allCards);
 
@@ -276,7 +275,7 @@ function findStraightDrawOuts(
   uniqueValues: number[],
   holeValues: number[],
   usedKeys: Set<string>,
-  allCards: Card[],
+  _allCards: Card[],
 ): { type: string | null; outKeys: Set<string> } {
   const outKeys = new Set<string>();
   const allSuits = ['♠', '♣', '♥', '♦'] as const;
@@ -285,7 +284,6 @@ function findStraightDrawOuts(
   for (let high = 14; high >= 5; high--) {
     const needed: number[] = [];
     for (let v = high; v > high - 5; v--) {
-      const checkVal = v === 1 ? 14 : v; // ace low
       needed.push(v <= 0 ? v + 13 : v);
     }
     // Normalize: for wheel (5-high), needed = [5,4,3,2,1] where 1=ace(14)
@@ -314,11 +312,6 @@ function findStraightDrawOuts(
       if (outKeys.size > 0) {
         // For OESD, check both ends
         if (isOpenEnded) {
-          // Also check the other end
-          const otherEnd = missingVal === normalNeeded[0]
-            ? (normalNeeded[4] > 1 ? normalNeeded[4] - 1 : null)
-            : (normalNeeded[0] < 14 ? normalNeeded[0] + 1 : null);
-          // But this is for a different straight, so we'd handle it in another iteration
           return { type: 'Open-ended straight draw', outKeys };
         }
         return { type: 'Gutshot straight draw', outKeys };

@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { Card, PostflopAction, Street } from '../../core/types';
 import { dealCards, handNotation } from '../../core/deck';
 import { evaluateBest5, calculateOuts } from '../../core/evaluator';
-import { classifyBoardTexture, calculatePotOdds, calculateDrawEquity, actionDisplay } from '../../core/postflop';
+import { classifyBoardTexture, calculateDrawEquity, actionDisplay } from '../../core/postflop';
 import { CardView, CardGroup } from '../../components/CardView';
 
 interface ReviewStreet {
@@ -39,7 +39,7 @@ function generateReviewHand(): ReviewHand {
     const board = allBoard.slice(0, config.boardCount);
     const hand = evaluateBest5([...holeCards, ...board]);
     const outsInfo = calculateOuts(holeCards, board);
-    const texture = classifyBoardTexture(board);
+    classifyBoardTexture(board);
     const equity = calculateDrawEquity(outsInfo.outs, config.streetType);
 
     let analysis = '';
@@ -90,7 +90,7 @@ function generateReviewHand(): ReviewHand {
 export function HandReview() {
   const [hand, setHand] = useState<ReviewHand | null>(null);
   const [visibleStreet, setVisibleStreet] = useState(0);
-  const [userNotes, setUserNotes] = useState<string[]>([]);
+  const [_userNotes, setUserNotes] = useState<string[]>([]);
   const [showAnalysis, setShowAnalysis] = useState<boolean[]>([false, false, false]);
 
   const newHand = useCallback(() => {

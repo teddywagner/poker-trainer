@@ -1,4 +1,5 @@
-import { PlayerStats, SessionStats } from './types';
+import { PlayerStats } from './types';
+export type { PlayerStats } from './types';
 
 const STATS_KEY = 'poker-trainer-stats';
 

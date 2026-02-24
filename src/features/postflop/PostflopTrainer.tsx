@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { PostflopAction } from '../../core/types';
-import { generatePostflopScenario, scenarioTypeDisplay, actionDisplay, classifyBoardTexture, getCommonDrawInfo } from '../../core/postflop';
+import { generatePostflopScenario, scenarioTypeDisplay, actionDisplay, getCommonDrawInfo } from '../../core/postflop';
 import { CardView, CardGroup } from '../../components/CardView';
 import { Feedback } from '../../components/Feedback';
 import { ScoreBar } from '../../components/ScoreBar';

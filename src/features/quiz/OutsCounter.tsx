@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Card, Rank, Suit } from '../../core/types';
-import { dealCards, RANKS, SUITS, cardsEqual } from '../../core/deck';
+import { Card } from '../../core/types';
+import { dealCards, RANKS, SUITS } from '../../core/deck';
 import { calculateOuts } from '../../core/evaluator';
 import { CardView, CardGroup } from '../../components/CardView';
 import { Feedback } from '../../components/Feedback';

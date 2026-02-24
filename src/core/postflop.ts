@@ -1,6 +1,6 @@
-import { Card, BoardTexture, PostflopAction, ScenarioType, Street } from './types';
-import { RANK_VALUES, dealCards, SUITS } from './deck';
-import { evaluateBest5, calculateOuts, HandResult } from './evaluator';
+import { Card, BoardTexture, HandResult, PostflopAction, ScenarioType, Street } from './types';
+import { RANK_VALUES, dealCards } from './deck';
+import { evaluateBest5, calculateOuts } from './evaluator';
 
 export function classifyBoardTexture(board: Card[]): BoardTexture {
   if (board.length < 3) return 'dry';

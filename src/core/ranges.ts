@@ -1,5 +1,5 @@
 import { Card, Position, PreflopAction, PriorAction, StackDepth, TableSize } from './types';
-import { RANK_VALUES, handNotation } from './deck';
+import { RANK_VALUES } from './deck';
 
 // GTO-approximate opening ranges by position (6-max, 100bb)
 export const OPEN_RANGES: Record<string, Set<string>> = {
@@ -228,7 +228,7 @@ export function getRecommendedAction(
   return { action: 'fold', explanation: `${notation} should be folded in this situation.` };
 }
 
-function getPositionReason(position: Position, notation: string, tier: string): string {
+function getPositionReason(position: Position, _notation: string, _tier: string): string {
   switch (position) {
     case 'UTG':
     case 'UTG+1':

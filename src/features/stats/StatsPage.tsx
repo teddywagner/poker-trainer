@@ -16,9 +16,10 @@ export function StatsPage() {
     setShowConfirmClear(false);
   };
 
-  const positionEntries = Object.entries(stats.preflopByPosition);
-  const postflopEntries = Object.entries(stats.postflopByType);
-  const quizEntries = Object.entries(stats.quizByType);
+  type StatEntry = { total: number; correct: number };
+  const positionEntries = Object.entries(stats.preflopByPosition) as [string, StatEntry][];
+  const postflopEntries = Object.entries(stats.postflopByType) as [string, StatEntry][];
+  const quizEntries = Object.entries(stats.quizByType) as [string, StatEntry][];
   const maxPosTotal = Math.max(1, ...positionEntries.map(([, v]) => v.total));
 
   return (

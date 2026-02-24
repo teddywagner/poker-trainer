@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Card } from '../../core/types';
+import { Card, HandResult } from '../../core/types';
 import { dealCards } from '../../core/deck';
-import { evaluateBest5, compareHands, HandResult } from '../../core/evaluator';
+import { evaluateBest5, compareHands } from '../../core/evaluator';
 import { CardGroup } from '../../components/CardView';
 import { Feedback } from '../../components/Feedback';
 
@@ -29,7 +29,7 @@ export function HandRankingDrill() {
   const [feedback, setFeedback] = useState<{ correct: boolean; message: string } | null>(null);
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [timer, setTimer] = useState(0);
-  const [running, setRunning] = useState(false);
+  const [_running, setRunning] = useState(false);
   const intervalRef = useRef<number | null>(null);
 
   useEffect(() => {
