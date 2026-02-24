@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
+import { PlayStyle } from '../../core/types';
 import { buildMatrix, getRangeStats, MATRIX_RANKS, CellAction } from '../../core/rangeMatrix';
+import { getValidOpeners, getDefaultOpener, getStyleLabel } from '../../core/rangeData';
 
 const POSITIONS = ['UTG', 'HJ', 'CO', 'BTN', 'SB'] as const;
 
@@ -10,14 +12,38 @@ const ACTION_COLORS: Record<CellAction, string> = {
   fold: '#1a1a2e',
 };
 
-export function RangeChart({ onClose }: { onClose: () => void }) {
+interface RangeChartProps {
+  onClose: () => void;
+  style?: PlayStyle;
+}
+
+export function RangeChart({ onClose, style = 'GTO' }: RangeChartProps) {
   const [position, setPosition] = useState<string>('UTG');
   const [facingRaise, setFacingRaise] = useState(false);
+  const [openerPosition, setOpenerPosition] = useState<string>('');
 
-  const matrix = useMemo(() => buildMatrix(position, facingRaise), [position, facingRaise]);
+  // Compute valid openers for current defender position
+  const validOpeners = useMemo(() => getValidOpeners(position), [position]);
+  const effectiveOpener = useMemo(() => {
+    if (!facingRaise) return undefined;
+    if (openerPosition && validOpeners.includes(openerPosition)) return openerPosition;
+    return getDefaultOpener(position);
+  }, [facingRaise, position, openerPosition, validOpeners]);
+
+  // Reset opener when position changes
+  const handlePositionChange = (pos: string) => {
+    setPosition(pos);
+    setOpenerPosition('');
+  };
+
+  const matrix = useMemo(
+    () => buildMatrix(position, facingRaise, style, effectiveOpener),
+    [position, facingRaise, style, effectiveOpener]
+  );
   const stats = useMemo(() => getRangeStats(matrix), [matrix]);
 
-  const modeLabel = facingRaise ? '3-Betting' : 'Opening';
+  const modeLabel = facingRaise ? 'Defending' : 'Opening';
+  const styleLabel = getStyleLabel(style);
 
   return (
     <div className="range-chart-overlay">
@@ -30,7 +56,7 @@ export function RangeChart({ onClose }: { onClose: () => void }) {
         borderBottom: '1px solid var(--border-color)',
         flexShrink: 0,
       }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700 }}>GTO Ranges</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 700 }}>{styleLabel} Ranges</h2>
         <button
           className="btn btn-ghost btn-small"
           onClick={onClose}
@@ -48,7 +74,7 @@ export function RangeChart({ onClose }: { onClose: () => void }) {
               key={pos}
               className={`btn btn-small ${position === pos ? 'btn-primary' : 'btn-ghost'}`}
               style={{ flex: 1, fontSize: 12, padding: '6px 0' }}
-              onClick={() => setPosition(pos)}
+              onClick={() => handlePositionChange(pos)}
             >
               {pos}
             </button>
@@ -76,6 +102,27 @@ export function RangeChart({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
+      {/* Opener selector (only in Facing Raise mode) */}
+      {facingRaise && validOpeners.length > 0 && (
+        <div style={{ padding: '4px 16px 0', flexShrink: 0 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 4, textAlign: 'center' }}>
+            Opened by:
+          </div>
+          <div style={{ display: 'flex', gap: 3, justifyContent: 'center' }}>
+            {validOpeners.map(op => (
+              <button
+                key={op}
+                className={`btn btn-small ${(effectiveOpener === op) ? 'btn-primary' : 'btn-ghost'}`}
+                style={{ fontSize: 11, padding: '4px 10px', minWidth: 40 }}
+                onClick={() => setOpenerPosition(op)}
+              >
+                {op}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
       <div style={{
         padding: '6px 16px 10px',
@@ -86,6 +133,9 @@ export function RangeChart({ onClose }: { onClose: () => void }) {
       }}>
         {modeLabel} <strong style={{ color: 'var(--gold)' }}>{stats.percentage}%</strong> of hands
         <span style={{ color: 'var(--text-dim)', marginLeft: 6 }}>({stats.combos} combos)</span>
+        {facingRaise && effectiveOpener && (
+          <span style={{ color: 'var(--text-dim)', marginLeft: 6 }}>vs {effectiveOpener}</span>
+        )}
       </div>
 
       {/* Grid */}

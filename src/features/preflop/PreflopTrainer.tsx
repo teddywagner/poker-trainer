@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Card, Position, Position6Max, PreflopAction, PriorAction, StackDepth, TableSize } from '../../core/types';
+import { Card, Position, Position6Max, PreflopAction, PriorAction, StackDepth, TableSize, PlayStyle } from '../../core/types';
 import { dealCards, handNotation } from '../../core/deck';
 import { getRecommendedAction, getHandTier, generatePriorAction, priorActionDisplay } from '../../core/ranges';
 import { CardView } from '../../components/CardView';
@@ -13,10 +13,12 @@ const POSITIONS_9MAX: Position[] = ['UTG', 'UTG+1', 'MP', 'MP+1', 'HJ', 'CO', 'B
 export function PreflopTrainer() {
   const [tableSize, setTableSize] = useState<TableSize>('6max');
   const [stackDepth, setStackDepth] = useState<StackDepth>(100);
+  const [style, setStyle] = useState<PlayStyle>('GTO');
   const [scenario, setScenario] = useState<{
     cards: [Card, Card];
     position: Position;
     priorAction: PriorAction;
+    raiserPosition?: Position;
   } | null>(null);
   const [feedback, setFeedback] = useState<{
     correct: boolean;
@@ -32,15 +34,15 @@ export function PreflopTrainer() {
     const cards = dealCards(2) as [Card, Card];
     const positions = tableSize === '6max' ? POSITIONS_6MAX : POSITIONS_9MAX;
     const position = positions[Math.floor(Math.random() * positions.length)];
-    const priorAction = generatePriorAction(position);
-    setScenario({ cards, position, priorAction });
+    const { priorAction, raiserPosition } = generatePriorAction(position);
+    setScenario({ cards, position, priorAction, raiserPosition });
     setFeedback(null);
   }, [tableSize]);
 
   const handleAction = (action: PreflopAction) => {
     if (!scenario || feedback) return;
-    const { cards, position, priorAction } = scenario;
-    const rec = getRecommendedAction(cards, position, priorAction, stackDepth, tableSize);
+    const { cards, position, priorAction, raiserPosition } = scenario;
+    const rec = getRecommendedAction(cards, position, priorAction, stackDepth, tableSize, style, raiserPosition);
     const notation = handNotation(cards);
     const tier = getHandTier(notation);
 
@@ -90,7 +92,7 @@ export function PreflopTrainer() {
       <ScoreBar correct={score.correct} total={score.total} streak={score.streak} />
 
       {/* Stack Depth Selector */}
-      <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 8 }}>
         {([20, 50, 100] as StackDepth[]).map(d => (
           <button
             key={d}
@@ -100,18 +102,30 @@ export function PreflopTrainer() {
         ))}
       </div>
 
+      {/* Play Style Selector */}
+      <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 16 }}>
+        {(['GTO', 'TAG', 'LAG'] as PlayStyle[]).map(s => (
+          <button
+            key={s}
+            className={`btn btn-small ${style === s ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setStyle(s)}
+            style={{ fontSize: 12, minWidth: 52 }}
+          >{s}</button>
+        ))}
+      </div>
+
       <button
         className="btn btn-ghost btn-small"
         onClick={() => setShowRangeChart(true)}
         style={{ width: '100%', marginBottom: 12, fontSize: 13 }}
       >
-        View GTO Ranges
+        View {style} Ranges
       </button>
 
       {!scenario ? (
         <div style={{ textAlign: 'center', paddingTop: 40 }}>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 20, fontSize: 14, lineHeight: 1.6 }}>
-            Practice preflop decisions based on GTO-approximate ranges.
+            Practice preflop decisions based on solver-derived ranges.
             You'll be dealt random hole cards with a random position and action.
           </p>
           <button className="btn btn-primary btn-large" onClick={dealNewHand}>
@@ -133,12 +147,22 @@ export function PreflopTrainer() {
                   {scenario.position}
                 </span>
               </div>
-              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>{stackDepth}bb deep</span>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span style={{
+                  fontSize: 11,
+                  color: 'var(--gold)',
+                  background: 'rgba(212, 165, 67, 0.15)',
+                  padding: '2px 8px',
+                  borderRadius: 4,
+                  fontWeight: 600,
+                }}>{style}</span>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>{stackDepth}bb deep</span>
+              </div>
             </div>
 
             <div style={{ textAlign: 'center', marginBottom: 12 }}>
               <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>
-                {priorActionDisplay(scenario.priorAction)}
+                {priorActionDisplay(scenario.priorAction, scenario.raiserPosition)}
               </span>
             </div>
 
@@ -188,7 +212,7 @@ export function PreflopTrainer() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <Feedback
                 correct={feedback.correct}
-                title={feedback.correct ? 'Correct!' : `Incorrect — ${actionLabel(feedback.recommended)} recommended`}
+                title={feedback.correct ? 'Correct!' : `Incorrect \u2014 ${actionLabel(feedback.recommended)} recommended`}
                 message={feedback.explanation}
                 details={
                   !feedback.correct && (
@@ -205,7 +229,7 @@ export function PreflopTrainer() {
           )}
         </>
       )}
-      {showRangeChart && <RangeChart onClose={() => setShowRangeChart(false)} />}
+      {showRangeChart && <RangeChart onClose={() => setShowRangeChart(false)} style={style} />}
     </div>
   );
 }

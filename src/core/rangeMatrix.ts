@@ -1,5 +1,6 @@
 import { RANKS } from './deck';
-import { OPEN_RANGES, ALWAYS_3BET, VALUE_3BET, BLUFF_3BET_IP, CALL_VS_RAISE_IP } from './ranges';
+import { PlayStyle } from './types';
+import { getOpenRange, getFacingRaiseRanges } from './rangeData';
 
 // A down to 2
 export const MATRIX_RANKS = [...RANKS].reverse();
@@ -22,8 +23,26 @@ function cellNotation(row: number, col: number): { notation: string; type: 'pair
   return { notation: `${r2}${r1}o`, type: 'offsuit' };
 }
 
-export function buildMatrix(position: string, facingRaise: boolean): MatrixCell[][] {
+export function buildMatrix(
+  position: string,
+  facingRaise: boolean,
+  style: PlayStyle = 'GTO',
+  openerPosition?: string,
+): MatrixCell[][] {
   const matrix: MatrixCell[][] = [];
+
+  // Pre-compute the ranges once
+  let openRange: Set<string> | null = null;
+  let threeBetRange: Set<string> | null = null;
+  let callRange: Set<string> | null = null;
+
+  if (facingRaise && openerPosition) {
+    const ranges = getFacingRaiseRanges(position, openerPosition, style);
+    threeBetRange = ranges.threeBet;
+    callRange = ranges.call;
+  } else if (!facingRaise) {
+    openRange = getOpenRange(position, style);
+  }
 
   for (let row = 0; row < 13; row++) {
     const rowCells: MatrixCell[] = [];
@@ -32,16 +51,13 @@ export function buildMatrix(position: string, facingRaise: boolean): MatrixCell[
       let action: CellAction = 'fold';
 
       if (facingRaise) {
-        if (ALWAYS_3BET.has(notation) || VALUE_3BET.has(notation)) {
+        if (threeBetRange && threeBetRange.has(notation)) {
           action = '3bet';
-        } else if (BLUFF_3BET_IP.has(notation) && ['CO', 'BTN', 'SB'].includes(position)) {
-          action = '3bet';
-        } else if (CALL_VS_RAISE_IP.has(notation) && ['CO', 'BTN'].includes(position)) {
+        } else if (callRange && callRange.has(notation)) {
           action = 'call';
         }
       } else {
-        const range = OPEN_RANGES[position];
-        if (range && range.has(notation)) {
+        if (openRange && openRange.has(notation)) {
           action = 'raise';
         }
       }

@@ -91,3 +91,5 @@ export interface PlayerStats {
 }
 
 export type QuizType = 'guess_odds' | 'outs_counter' | 'hand_ranking' | 'pot_odds' | 'range_vs_range';
+
+export type PlayStyle = 'GTO' | 'TAG' | 'LAG';

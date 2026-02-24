@@ -1,100 +1,12 @@
-import { Card, Position, PreflopAction, PriorAction, StackDepth, TableSize } from './types';
+import { Card, Position, PreflopAction, PriorAction, StackDepth, TableSize, PlayStyle } from './types';
 import { RANK_VALUES } from './deck';
+import { getOpenRange, getFacingRaiseAction, getFacing3BetAction, getStyleLabel } from './rangeData';
 
-// GTO-approximate opening ranges by position (6-max, 100bb)
-export const OPEN_RANGES: Record<string, Set<string>> = {
-  UTG: new Set([
-    // Pairs: 22+
-    'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77', '66', '55', '44', '33', '22',
-    // Suited: ATs+, KTs+, QTs+, JTs, T9s, 98s, 87s, 76s
-    'ATs', 'AJs', 'AQs', 'AKs',
-    'KTs', 'KJs', 'KQs',
-    'QTs', 'QJs',
-    'JTs',
-    'T9s', '98s', '87s', '76s',
-    // Offsuit: AJo+, KQo
-    'AJo', 'AQo', 'AKo', 'KQo',
-  ]),
-  HJ: new Set([
-    'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77', '66', '55', '44', '33', '22',
-    'A2s', 'A3s', 'A4s', 'A5s', 'A6s', 'A7s', 'A8s', 'A9s', 'ATs', 'AJs', 'AQs', 'AKs',
-    'K9s', 'KTs', 'KJs', 'KQs',
-    'Q9s', 'QTs', 'QJs',
-    'J9s', 'JTs',
-    'T9s', '98s', '87s', '76s', '65s',
-    'ATo', 'AJo', 'AQo', 'AKo', 'KJo', 'KQo', 'QJo',
-  ]),
-  CO: new Set([
-    'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77', '66', '55', '44', '33', '22',
-    'A2s', 'A3s', 'A4s', 'A5s', 'A6s', 'A7s', 'A8s', 'A9s', 'ATs', 'AJs', 'AQs', 'AKs',
-    'K5s', 'K6s', 'K7s', 'K8s', 'K9s', 'KTs', 'KJs', 'KQs',
-    'Q8s', 'Q9s', 'QTs', 'QJs',
-    'J8s', 'J9s', 'JTs',
-    'T8s', 'T9s',
-    '97s', '98s',
-    '86s', '87s',
-    '75s', '76s',
-    '64s', '65s',
-    '54s',
-    'A9o', 'ATo', 'AJo', 'AQo', 'AKo',
-    'KTo', 'KJo', 'KQo',
-    'QTo', 'QJo',
-    'JTo',
-  ]),
-  BTN: new Set([
-    'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77', '66', '55', '44', '33', '22',
-    'A2s', 'A3s', 'A4s', 'A5s', 'A6s', 'A7s', 'A8s', 'A9s', 'ATs', 'AJs', 'AQs', 'AKs',
-    'K2s', 'K3s', 'K4s', 'K5s', 'K6s', 'K7s', 'K8s', 'K9s', 'KTs', 'KJs', 'KQs',
-    'Q4s', 'Q5s', 'Q6s', 'Q7s', 'Q8s', 'Q9s', 'QTs', 'QJs',
-    'J6s', 'J7s', 'J8s', 'J9s', 'JTs',
-    'T6s', 'T7s', 'T8s', 'T9s',
-    '96s', '97s', '98s',
-    '85s', '86s', '87s',
-    '75s', '76s',
-    '64s', '65s',
-    '53s', '54s',
-    'A2o', 'A3o', 'A4o', 'A5o', 'A6o', 'A7o', 'A8o', 'A9o', 'ATo', 'AJo', 'AQo', 'AKo',
-    'K7o', 'K8o', 'K9o', 'KTo', 'KJo', 'KQo',
-    'Q9o', 'QTo', 'QJo',
-    'J9o', 'JTo',
-    'T8o', 'T9o',
-    '98o',
-  ]),
-  SB: new Set([
-    'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77', '66', '55', '44', '33', '22',
-    'A2s', 'A3s', 'A4s', 'A5s', 'A6s', 'A7s', 'A8s', 'A9s', 'ATs', 'AJs', 'AQs', 'AKs',
-    'K2s', 'K3s', 'K4s', 'K5s', 'K6s', 'K7s', 'K8s', 'K9s', 'KTs', 'KJs', 'KQs',
-    'Q4s', 'Q5s', 'Q6s', 'Q7s', 'Q8s', 'Q9s', 'QTs', 'QJs',
-    'J7s', 'J8s', 'J9s', 'JTs',
-    'T7s', 'T8s', 'T9s',
-    '97s', '98s',
-    '86s', '87s',
-    '75s', '76s',
-    '65s',
-    '54s',
-    'A2o', 'A3o', 'A4o', 'A5o', 'A6o', 'A7o', 'A8o', 'A9o', 'ATo', 'AJo', 'AQo', 'AKo',
-    'K5o', 'K6o', 'K7o', 'K8o', 'K9o', 'KTo', 'KJo', 'KQo',
-    'Q8o', 'Q9o', 'QTo', 'QJo',
-    'J9o', 'JTo',
-    'T9o',
-  ]),
-  BB: new Set([]), // BB defends, doesn't open
-};
-
-// For 9-max, map positions
+// For 9-max, map positions to 6-max equivalents
 const POSITION_MAP_9MAX: Record<string, string> = {
   'UTG': 'UTG', 'UTG+1': 'UTG', 'MP': 'UTG', 'MP+1': 'HJ',
   'HJ': 'HJ', 'CO': 'CO', 'BTN': 'BTN', 'SB': 'SB', 'BB': 'BB',
 };
-
-// 3-bet ranges
-export const ALWAYS_3BET = new Set(['AA', 'KK', 'QQ', 'AKs', 'AKo']);
-export const VALUE_3BET = new Set(['JJ', 'TT', 'AQs', 'AQo', 'AJs', 'KQs']);
-export const BLUFF_3BET_IP = new Set(['A5s', 'A4s', 'A3s', 'A2s', '76s', '65s', '54s']);
-export const CALL_VS_RAISE_IP = new Set([
-  '22', '33', '44', '55', '66', '77', '88', '99', 'TT',
-  'KJs', 'KTs', 'QJs', 'QTs', 'JTs', 'T9s', '98s', '87s',
-]);
 
 function normalizeHandNotation(cards: [Card, Card]): string {
   const [a, b] = cards;
@@ -140,95 +52,130 @@ export function getRecommendedAction(
   priorAction: PriorAction,
   stackDepth: StackDepth,
   tableSize: TableSize,
+  style: PlayStyle = 'GTO',
+  raiserPosition?: Position,
 ): { action: PreflopAction; explanation: string } {
   const notation = normalizeHandNotation(cards);
   const tier = getHandTier(notation);
+  const styleDesc = getStyleLabel(style);
 
   // Map position for range lookup
   const lookupPos = tableSize === '9max'
     ? (POSITION_MAP_9MAX[position] || position)
     : position;
 
+  const raiserLookup = raiserPosition
+    ? (tableSize === '9max' ? (POSITION_MAP_9MAX[raiserPosition] || raiserPosition) : raiserPosition)
+    : undefined;
+
   // Short stack adjustments (20bb)
   if (stackDepth === 20) {
-    if (ALWAYS_3BET.has(notation) || VALUE_3BET.has(notation)) {
-      return { action: 'allin', explanation: `${notation} is a premium hand at ${stackDepth}bb — push all-in.` };
+    const premiums = new Set(['AA', 'KK', 'QQ', 'AKs', 'AKo', 'JJ', 'TT', 'AQs', 'AQo', 'AJs', 'KQs']);
+    if (premiums.has(notation)) {
+      return { action: 'allin', explanation: `${notation} is a premium hand at ${stackDepth}bb \u2014 push all-in. (${styleDesc})` };
     }
     const shortStackPush = new Set([
-      ...Array.from(ALWAYS_3BET), ...Array.from(VALUE_3BET),
-      '99', '88', '77', '66', 'ATs', 'ATo', 'KQs', 'KQo', 'KJs',
+      ...Array.from(premiums),
+      '99', '88', '77', '66', 'ATs', 'ATo', 'KQo', 'KJs',
     ]);
     if (shortStackPush.has(notation) && (priorAction === 'folded_to_you' || priorAction === 'one_limper')) {
-      return { action: 'allin', explanation: `${notation} is strong enough to shove at ${stackDepth}bb from ${position}.` };
+      return { action: 'allin', explanation: `${notation} is strong enough to shove at ${stackDepth}bb from ${position}. (${styleDesc})` };
     }
-    if (priorAction === 'folded_to_you' && OPEN_RANGES[lookupPos]?.has(notation)) {
-      return { action: 'raise', explanation: `${notation} is in the open-raise range from ${position}, but at ${stackDepth}bb consider an all-in or min-raise.` };
+    const range = getOpenRange(lookupPos, style);
+    if (priorAction === 'folded_to_you' && range.has(notation)) {
+      return { action: 'raise', explanation: `${notation} is in the ${styleDesc} open-raise range from ${position}, but at ${stackDepth}bb consider an all-in or min-raise.` };
     }
   }
 
   // Facing a raise (3-bet or fold spots)
   if (priorAction === 'raise_25x' || priorAction === 'raise_3x') {
-    if (ALWAYS_3BET.has(notation)) {
-      return { action: '3bet', explanation: `${notation} is a premium hand — always 3-bet for value.` };
-    }
-    if (VALUE_3BET.has(notation)) {
-      const inPos = isInPosition(position, 'UTG'); // simplified
+    const raiserPos = raiserLookup || guessRaiserPosition(lookupPos);
+    const action = getFacingRaiseAction(notation, lookupPos, raiserPos, style);
+    const inPos = isInPosition(position, raiserPosition || (raiserPos as Position));
+
+    if (action === '3bet') {
       return {
         action: '3bet',
-        explanation: `${notation} is strong enough to 3-bet for value${inPos ? ' especially in position' : ''}.`
+        explanation: `In the ${styleDesc} style, ${notation} is a 3-bet vs ${raiserPosition || raiserPos} open${inPos ? ' (in position)' : ''}. ${get3BetReason(notation, style)}`
       };
     }
-    if (BLUFF_3BET_IP.has(notation) && ['CO', 'BTN', 'SB'].includes(position)) {
-      return { action: '3bet', explanation: `${notation} makes a good 3-bet bluff from ${position} — suited wheel aces/connectors have good playability.` };
+    if (action === 'call') {
+      return {
+        action: 'call',
+        explanation: `In the ${styleDesc} style, ${notation} is a call vs ${raiserPosition || raiserPos} open from ${position}${inPos ? ' \u2014 good implied odds in position' : ''}.`
+      };
     }
-    if (CALL_VS_RAISE_IP.has(notation) && ['CO', 'BTN'].includes(position)) {
-      return { action: 'call', explanation: `${notation} plays well as a call in position — good implied odds with a speculative hand.` };
-    }
-    return { action: 'fold', explanation: `${notation} is not strong enough to continue against a raise from ${position}. It's ${tier === 'Trash' ? 'too weak' : 'too marginal'} to call or 3-bet here.` };
+    return {
+      action: 'fold',
+      explanation: `In the ${styleDesc} style, ${notation} is not strong enough to continue vs a ${raiserPosition || raiserPos} open from ${position}. ${tier === 'Trash' ? 'Too weak' : 'Too marginal'} to call or 3-bet.`
+    };
   }
 
-  // Facing a 3-bet
+  // Facing a 3-bet (you opened, someone 3-bet)
   if (priorAction === '3bet') {
-    if (ALWAYS_3BET.has(notation)) {
-      return { action: 'allin', explanation: `${notation} is strong enough to 4-bet/all-in against a 3-bet.` };
+    const action = getFacing3BetAction(notation, lookupPos, style);
+    if (action === '4bet') {
+      return { action: 'allin', explanation: `In the ${styleDesc} style, ${notation} is strong enough to 4-bet/all-in against a 3-bet.` };
     }
-    if (VALUE_3BET.has(notation)) {
-      return { action: 'call', explanation: `${notation} is strong enough to call a 3-bet, but not quite strong enough to 4-bet.` };
+    if (action === 'call') {
+      return { action: 'call', explanation: `In the ${styleDesc} style, ${notation} is strong enough to call a 3-bet, but not quite strong enough to 4-bet.` };
     }
-    return { action: 'fold', explanation: `${notation} doesn't have enough equity to continue against a 3-bet.` };
+    return { action: 'fold', explanation: `In the ${styleDesc} style, ${notation} doesn't have enough equity to continue against a 3-bet.` };
   }
 
-  // Folded to you or one limper — open raise range
+  // Folded to you — open raise range
   if (priorAction === 'folded_to_you') {
     if (position === 'BB') {
-      return { action: 'call', explanation: `You're in the BB with ${notation} — you already have a big blind posted, so you get to see a free flop.` };
+      return { action: 'call', explanation: `You're in the BB with ${notation} \u2014 you already have a big blind posted, so you get to see a free flop.` };
     }
-    const range = OPEN_RANGES[lookupPos];
-    if (range && range.has(notation)) {
-      return { action: 'raise', explanation: `${notation} is in the open-raise range from ${position}. ${getPositionReason(position, notation, tier)}` };
+    const range = getOpenRange(lookupPos, style);
+    if (range.has(notation)) {
+      return { action: 'raise', explanation: `In the ${styleDesc} style, ${notation} is in the open-raise range from ${position}. ${getPositionReason(position)}` };
     }
-    return { action: 'fold', explanation: `${notation} is outside the opening range from ${position}. ${tier === 'Marginal' ? 'It\'s a marginal hand that doesn\'t play well from this position.' : 'This hand is too weak to open from this position.'}` };
+    return { action: 'fold', explanation: `In the ${styleDesc} style, ${notation} is outside the opening range from ${position}. ${tier === 'Marginal' ? "It's a marginal hand that doesn't play well from this position." : 'This hand is too weak to open from this position.'}` };
   }
 
   // One limper
   if (priorAction === 'one_limper') {
     if (tier === 'Premium' || tier === 'Strong') {
-      return { action: 'raise', explanation: `${notation} should be raised for value over a limper — isolate with a strong hand.` };
+      return { action: 'raise', explanation: `${notation} should be raised for value over a limper \u2014 isolate with a strong hand. (${styleDesc})` };
     }
-    const range = OPEN_RANGES[lookupPos];
-    if (range && range.has(notation)) {
-      return { action: 'raise', explanation: `${notation} is strong enough to raise over a limper from ${position} to isolate.` };
+    const range = getOpenRange(lookupPos, style);
+    if (range.has(notation)) {
+      return { action: 'raise', explanation: `In the ${styleDesc} style, ${notation} is strong enough to raise over a limper from ${position} to isolate.` };
     }
     if (tier === 'Playable' && ['BTN', 'CO', 'SB'].includes(position)) {
-      return { action: 'call', explanation: `${notation} can limp behind in position for implied odds against a limper.` };
+      return { action: 'call', explanation: `${notation} can limp behind in position for implied odds against a limper. (${styleDesc})` };
     }
-    return { action: 'fold', explanation: `${notation} is not strong enough to raise or limp over a limper from ${position}.` };
+    return { action: 'fold', explanation: `In the ${styleDesc} style, ${notation} is not strong enough to raise or limp over a limper from ${position}.` };
   }
 
-  return { action: 'fold', explanation: `${notation} should be folded in this situation.` };
+  return { action: 'fold', explanation: `${notation} should be folded in this situation. (${styleDesc})` };
 }
 
-function getPositionReason(position: Position, _notation: string, _tier: string): string {
+function get3BetReason(notation: string, style: PlayStyle): string {
+  const premiums = new Set(['AA', 'KK', 'QQ', 'AKs', 'AKo']);
+  if (premiums.has(notation)) return 'Premium hand \u2014 always 3-bet for value.';
+
+  const value = new Set(['JJ', 'TT', 'AQs', 'AQo', 'AJs', 'KQs']);
+  if (value.has(notation)) return 'Strong hand \u2014 3-bet for value.';
+
+  if (notation.startsWith('A') && notation.endsWith('s')) {
+    return 'Suited ace blocker \u2014 good 3-bet bluff candidate with backdoor equity.';
+  }
+
+  if (style === 'LAG') return 'Aggressive 3-bet bluff in the LAG style.';
+  return 'Balanced 3-bet bluff to avoid being exploitably tight.';
+}
+
+function guessRaiserPosition(yourPosition: string): string {
+  const earlier: Record<string, string> = {
+    'HJ': 'UTG', 'CO': 'HJ', 'BTN': 'CO', 'SB': 'BTN', 'BB': 'CO',
+  };
+  return earlier[yourPosition] || 'UTG';
+}
+
+function getPositionReason(position: Position): string {
   switch (position) {
     case 'UTG':
     case 'UTG+1':
@@ -240,38 +187,70 @@ function getPositionReason(position: Position, _notation: string, _tier: string)
     case 'CO':
       return 'The cutoff allows a wider opening range as only the BTN, SB, and BB remain.';
     case 'BTN':
-      return 'The button is the most profitable position — open wide and use your positional advantage postflop.';
+      return 'The button is the most profitable position \u2014 open wide and use your positional advantage postflop.';
     case 'SB':
-      return 'The small blind should raise or fold — limping is generally unprofitable due to positional disadvantage.';
+      return 'The small blind should raise or fold \u2014 limping is generally unprofitable due to positional disadvantage.';
     default:
       return '';
   }
 }
 
-export function generatePriorAction(position: Position): PriorAction {
-  // Realistic prior action distribution
-  if (position === 'UTG' || position === 'UTG+1') {
-    return 'folded_to_you'; // Early position is almost always folded to
-  }
-  const rand = Math.random();
-  if (position === 'SB' || position === 'BB') {
-    if (rand < 0.4) return 'folded_to_you';
-    if (rand < 0.6) return 'one_limper';
-    if (rand < 0.85) return 'raise_25x';
-    return 'raise_3x';
-  }
-  if (rand < 0.55) return 'folded_to_you';
-  if (rand < 0.7) return 'one_limper';
-  if (rand < 0.9) return 'raise_25x';
-  return 'raise_3x';
+// Full position order for determining who could have raised
+const OPEN_POSITION_ORDER: string[] = ['UTG', 'HJ', 'CO', 'BTN', 'SB'];
+
+export interface GeneratedAction {
+  priorAction: PriorAction;
+  raiserPosition?: Position;
 }
 
-export function priorActionDisplay(action: PriorAction): string {
+export function generatePriorAction(position: Position): GeneratedAction {
+  // Early position is almost always folded to
+  if (position === 'UTG' || position === 'UTG+1') {
+    return { priorAction: 'folded_to_you' };
+  }
+
+  const rand = Math.random();
+  let priorAction: PriorAction;
+
+  if (position === 'SB' || position === 'BB') {
+    if (rand < 0.35) priorAction = 'folded_to_you';
+    else if (rand < 0.50) priorAction = 'one_limper';
+    else if (rand < 0.80) priorAction = 'raise_25x';
+    else if (rand < 0.95) priorAction = 'raise_3x';
+    else priorAction = '3bet';
+  } else {
+    if (rand < 0.50) priorAction = 'folded_to_you';
+    else if (rand < 0.65) priorAction = 'one_limper';
+    else if (rand < 0.85) priorAction = 'raise_25x';
+    else if (rand < 0.95) priorAction = 'raise_3x';
+    else priorAction = '3bet';
+  }
+
+  // Assign raiser position for raise/3bet actions
+  if (priorAction === 'raise_25x' || priorAction === 'raise_3x' || priorAction === '3bet') {
+    let possibleRaisers: string[];
+
+    if (position === 'BB') {
+      possibleRaisers = ['UTG', 'HJ', 'CO', 'BTN', 'SB'];
+    } else {
+      const posIdx = OPEN_POSITION_ORDER.indexOf(position);
+      if (posIdx <= 0) return { priorAction: 'folded_to_you' }; // fallback
+      possibleRaisers = OPEN_POSITION_ORDER.slice(0, posIdx);
+    }
+
+    const raiserPosition = possibleRaisers[Math.floor(Math.random() * possibleRaisers.length)] as Position;
+    return { priorAction, raiserPosition };
+  }
+
+  return { priorAction };
+}
+
+export function priorActionDisplay(action: PriorAction, raiserPosition?: string): string {
   switch (action) {
     case 'folded_to_you': return 'Folded to you';
     case 'one_limper': return '1 limper';
-    case 'raise_25x': return 'Raise to 2.5x';
-    case 'raise_3x': return 'Raise to 3x';
-    case '3bet': return '3-bet to ~9x';
+    case 'raise_25x': return raiserPosition ? `${raiserPosition} raises to 2.5x` : 'Raise to 2.5x';
+    case 'raise_3x': return raiserPosition ? `${raiserPosition} raises to 3x` : 'Raise to 3x';
+    case '3bet': return raiserPosition ? `3-bet to ~9x (by ${raiserPosition})` : '3-bet to ~9x';
   }
 }
